@@ -1,0 +1,94 @@
+name: Validate docs
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/prompts/**'
+      - '.github/agents/**'
+
+jobs:
+  validate-product-docs:
+    name: Check product docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check discovery docs
+        run: |
+          for f in docs/product/*-discovery.md; do
+            [ -f "$f" ] || continue
+            echo "Checking $f"
+            grep -q "## Problem space" "$f"       || (echo "❌ MISSING: '## Problem space' in $f" && exit 1)
+            grep -q "## Handoff Summary" "$f"     || (echo "❌ MISSING: '## Handoff Summary' in $f" && exit 1)
+            grep -q "## Open Questions" "$f"      || (echo "❌ MISSING: '## Open Questions' in $f" && exit 1)
+            echo "✅ $f"
+          done
+
+      - name: Check PRDs
+        run: |
+          for f in docs/product/*-prd.md; do
+            [ -f "$f" ] || continue
+            echo "Checking $f"
+            grep -q "## Functional requirements" "$f"  || (echo "❌ MISSING: '## Functional requirements' in $f" && exit 1)
+            grep -q "## Goals" "$f"                    || (echo "❌ MISSING: '## Goals' in $f" && exit 1)
+            grep -q "## Handoff Summary" "$f"           || (echo "❌ MISSING: '## Handoff Summary' in $f" && exit 1)
+            grep -q "## Open Questions" "$f"            || (echo "❌ MISSING: '## Open Questions' in $f" && exit 1)
+            echo "✅ $f"
+          done
+
+      - name: Check roadmaps
+        run: |
+          for f in docs/product/*-roadmap.md; do
+            [ -f "$f" ] || continue
+            echo "Checking $f"
+            grep -q "## Phase 1" "$f"           || (echo "❌ MISSING: '## Phase 1' in $f" && exit 1)
+            grep -q "## Handoff Summary" "$f"   || (echo "❌ MISSING: '## Handoff Summary' in $f" && exit 1)
+            echo "✅ $f"
+          done
+
+  validate-engineering-docs:
+    name: Check engineering docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check tech specs
+        run: |
+          for f in docs/engineering/*-tech-spec.md; do
+            [ -f "$f" ] || continue
+            echo "Checking $f"
+            grep -q "## Tech stack" "$f"          || (echo "❌ MISSING: '## Tech stack' in $f" && exit 1)
+            grep -q "## Data models" "$f"         || (echo "❌ MISSING: '## Data models' in $f" && exit 1)
+            grep -q "## API design" "$f"          || (echo "❌ MISSING: '## API design' in $f" && exit 1)
+            grep -q "## Environment variables" "$f" || (echo "❌ MISSING: '## Environment variables' in $f" && exit 1)
+            grep -q "## Handoff Summary" "$f"     || (echo "❌ MISSING: '## Handoff Summary' in $f" && exit 1)
+            echo "✅ $f"
+          done
+
+      - name: Check task breakdowns
+        run: |
+          for f in docs/engineering/*-tasks.md; do
+            [ -f "$f" ] || continue
+            echo "Checking $f"
+            grep -q "## Milestone 0" "$f"         || (echo "❌ MISSING: '## Milestone 0 — Setup' in $f" && exit 1)
+            grep -q "Acceptance criteria" "$f"    || (echo "❌ MISSING: acceptance criteria in $f" && exit 1)
+            grep -q "## Handoff Summary" "$f"     || (echo "❌ MISSING: '## Handoff Summary' in $f" && exit 1)
+            echo "✅ $f"
+          done
+
+      - name: Block merge if secrets detected
+        run: |
+          if grep -rn "sk-ant-\|ANTHROPIC_API_KEY=.\+" docs/ 2>/dev/null; then
+            echo "❌ Possible secret found in docs/ — do not merge"
+            exit 1
+          fi
+          echo "✅ No secrets detected"
+
+      - name: Summary
+        run: |
+          echo "=== All docs in this repo ==="
+          find docs/ -name "*.md" | sort
+          echo ""
+          echo "=== Doc count ==="
+          find docs/ -name "*.md" | wc -l
